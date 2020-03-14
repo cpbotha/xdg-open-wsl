@@ -1,0 +1,4 @@
+[flake8]
+docstring-convention=numpy
+max-line-length = 120
+import-order-style = google
