@@ -9,12 +9,12 @@
 # for org-open-file, you might have to change start-proces-shell-command in org.el
 # to call-process-shell-command, else you'll see this:
 
-    # - if this is called via emacs -> sensible-browser -> xdg-open the
-    #   invoked /init explorer.exe / cmd.exe blocks forever, shows nothing,
-    #   and ends up eating 100% CPU
-    # - invoking sensible-browser directly from shell works
-    # - invoking xdg-open directly from emacs works
-    # - symlinking sensible-browser to xdg-open does NOT work.
+# - if this is called via emacs -> sensible-browser -> xdg-open the
+#   invoked /init explorer.exe / cmd.exe blocks forever, shows nothing,
+#   and ends up eating 100% CPU
+# - invoking sensible-browser directly from shell works
+# - invoking xdg-open directly from emacs works
+# - symlinking sensible-browser to xdg-open does NOT work.
 
 
 import logging
@@ -23,10 +23,12 @@ import re
 import sys
 import subprocess
 
+import click
+
 MYDIR = os.path.dirname(os.path.abspath(sys.argv[0]))
 
 logger = logging.getLogger()
-file_handler = logging.FileHandler(os.path.join(MYDIR, 'xdg-open.log'))
+file_handler = logging.FileHandler(os.path.join(MYDIR, "xdg-open.log"))
 logger.addHandler(file_handler)
 logger.setLevel(logging.DEBUG)
 
@@ -39,9 +41,10 @@ def escape_argument(arg):
     # CommandLineToArgvW. We don't need to do this for simple arguments.
 
     if not arg or re.search(r'(["\s])', arg):
-        arg = '"' + arg.replace('"', r'\"') + '"'
+        arg = '"' + arg.replace('"', r"\"") + '"'
 
     return escape_for_cmd_exe(arg)
+
 
 # taken from https://stackoverflow.com/a/29215357/532513
 def escape_for_cmd_exe(arg):
@@ -61,8 +64,10 @@ def escape_for_cmd_exe(arg):
     #   argument to cmd.exe
 
     meta_chars = '()%!^"<>&|'
-    meta_re = re.compile('(' + '|'.join(re.escape(char) for char in list(meta_chars)) + ')')
-    meta_map = { char: "^%s" % char for char in meta_chars }
+    meta_re = re.compile(
+        "(" + "|".join(re.escape(char) for char in list(meta_chars)) + ")"
+    )
+    meta_map = {char: "^%s" % char for char in meta_chars}
 
     def escape_meta_chars(m):
         char = m.group(1)
@@ -70,42 +75,46 @@ def escape_for_cmd_exe(arg):
 
     return meta_re.sub(escape_meta_chars, arg)
 
-# convert /linux/filename.pdf to "\\\\wsl$\\Ubuntu-18.04\\linux\\filename.pdf"
-def main():
-    fn = sys.argv[1]
+
+@click.command()
+@click.argument("fn")
+def main(fn):
+    """Sample documentation"""
+    # convert /linux/filename.pdf to "\\\\wsl$\\Ubuntu-18.04\\linux\\filename.pdf"
 
     # if we get passed a normal url by e.g. browse-url.el, just open it directly
-    if re.match(r'^(https?|zotero):.*', fn):
+    if re.match(r"^(https?|zotero):.*", fn):
         # for opening weblinks from Emacs with xdg-open,
         # "cmd.exe /c start fn" works but "explorer fn" does not
         # also, for cmd.exe special characters such as & and (, often occurring in URLs, have to be escaped.
         # mysteriously on 2019-08-24, cmd.exe stops working, explorer.exe starts working...
         # with evernote inbox link, cmd.exe works, explorer.exe does not. ARGH.
         sp_run_arg = ["cmd.exe", "/c", "start", escape_for_cmd_exe(fn)]
-        #sp_run_arg = ["explorer.exe", escape_for_cmd_exe(fn)]
+        # sp_run_arg = ["explorer.exe", escape_for_cmd_exe(fn)]
         logger.info(f"http(s) -> subprocess.run() -> {sp_run_arg}")
         subprocess.run(sp_run_arg)
         return
 
     # sometimes we get passed a file:// prefix that has to be stripped before
     # realpath gets to it
-    file_prefix = 'file://'
+    file_prefix = "file://"
     if fn.startswith(file_prefix):
-        fn = fn[len(file_prefix):]
+        fn = fn[len(file_prefix) :]
 
     # make sure we have full, real location (absolute and symlinks resolved)
     real_fn = os.path.realpath(fn)
 
     # replace every / with a double \\ (escaped backslash)
     bsfn = real_fn.replace("/", "\\")
-    
+
     if bsfn.startswith("\\c\\"):
         # oooer, this file lives on the native Windows side, so complete the address
         winfn = bsfn.replace("\\c\\", "c:\\")
     else:
         # this file lives somewhere in WSL, so:
         # prepend with win-compatible way to see that file
-        winfn = f"\\\\wsl$\\Ubuntu-18.04{bsfn}"
+        wdn = os.environ.get("WSL_DISTRO_NAME", "Ubuntu-18.04")
+        winfn = f"\\\\wsl$\\{wdn}{bsfn}"
 
     sp_run_arg = ["explorer.exe", winfn]
     logger.info("====================>")
@@ -113,7 +122,7 @@ def main():
     completed_process = subprocess.run(sp_run_arg)
     logger.info(completed_process)
     logger.info("================DONE.")
-    #subprocess.run(["cmd.exe", "/c", "start", "", winfn])
+    # subprocess.run(["cmd.exe", "/c", "start", "", winfn])
 
 
 if __name__ == "__main__":
