@@ -1,6 +1,10 @@
+# xdg-open-wsl
+
 xdg-open-wsl is an xdg-open replacement for WSL that opens files and links using Windows apps.
 
 For WSL apps using X, e.g. emacs, this enables the opening of files using the relevant Windows tool.
+
+![Run Tests](https://github.com/cpbotha/xdg-open-wsl/workflows/Run%20Tests/badge.svg)
 
 ## Installation.
 
