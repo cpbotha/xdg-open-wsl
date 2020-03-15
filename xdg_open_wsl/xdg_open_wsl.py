@@ -34,7 +34,7 @@ def build_mnt_to_drive_table() -> List[Tuple[str, str]]:
             # I find the first and the third, so I do a range from 0 to <3 but skip one with step=2
             # e.g. "/mnt/c" -> "C:\"
             drive, mount_point = l.split()[0:3:2]
-            # make it "/mnt/c/" -> "c:/"
+            # make it "/mnt/c/" -> "C:/"
             table.append((f"{mount_point}/", drive[0:-1] + "/"))
 
     return table
@@ -84,40 +84,10 @@ def escape_for_cmd_exe(arg):
     return meta_re.sub(escape_meta_chars, arg)
 
 
-@click.command()
-@click.option("--logfile")
-@click.argument("file_or_url")
-def main(logfile, file_or_url):
-    """Drop-in replacement for xdg-open on WSL systems that will open filename or URL using Windows.
-
-    Use this to have your WSL X-application open files and links in the corresponding Windows application.
-    I use it for Emacs running on WSL to open links and attachments in mu4e emails, and files and links from
-    orgmode and dired.
-
-    If the argument is a url starting with http(s) or zotero (special case for linking to zotero collections),
-    it is opened with the default Windows handler, typically your browser.
-
-    If the argument is a filename, its true location is determined. If the file is on the NTFS filesystem,
-    it is passed as a standard full "D:\\my\\path\\file.ext" to Windows for handling. If it is on the WSL
-    filesystem, it is transformed to a "wsl$\\"-style URI and passed to Windows for handling.
+def convert_filename_to_windows(fn: str, drive_lut: List[Tuple[str, str]], distro_name: str) -> str:
+    """Given a filename, convert to Windows-compatible double-backslashed `D:\\my\\path` path or to
+    `$wsl\\\\distro\\path` WSL-locator.
     """
-
-    fn = file_or_url
-
-    if logfile is not None:
-        file_handler = logging.FileHandler(logfile)
-        logger.addHandler(file_handler)
-
-    # if we get passed a normal url by e.g. browse-url.el, just open it directly
-    if re.match(r"^(https?|zotero):.*", fn):
-        # to open web-links, we currently use "cmd.exe /c start http://your.url"
-        # after a few months of testing, this has proven reliable for normal links than explorer
-        # for cmd.exe special characters such as & and (, often occurring in URLs, have to be escaped.
-        sp_run_arg = ["cmd.exe", "/c", "start", escape_for_cmd_exe(fn)]
-        # sp_run_arg = ["explorer.exe", escape_for_cmd_exe(fn)]
-        logger.info(f"http(s) -> subprocess.run() -> {sp_run_arg}")
-        subprocess.run(sp_run_arg)
-        return
 
     # sometimes we get passed a file:// prefix that has to be stripped before
     # realpath gets to it
@@ -129,9 +99,8 @@ def main(logfile, file_or_url):
     real_fn = os.path.realpath(fn)
 
     # only if path starts with e.g. /mnt/c/ replace that with c:/
-    lut = build_mnt_to_drive_table()
     on_wsl_fs = True
-    for mount_point, drive in lut:
+    for mount_point, drive in drive_lut:
         if real_fn.startswith(mount_point):
             # only replace the first occurrence, just in case
             real_fn = real_fn.replace(mount_point, drive, 1)
@@ -151,8 +120,47 @@ def main(logfile, file_or_url):
         # case 2, his file lives somewhere in WSL, so:
         # prepend with win-compatible way to see that file
         # i.e. convert /linux/filename.pdf to "\\\\wsl$\\Ubuntu-18.04\\linux\\filename.pdf"
-        wdn = os.environ.get("WSL_DISTRO_NAME", "Ubuntu-18.04")
-        winfn = f"\\\\wsl$\\{wdn}{winfn}"
+        winfn = f"\\\\wsl$\\{distro_name}{winfn}"
+
+    return winfn
+
+
+@click.command()
+@click.option("--logfile")
+@click.argument("file_or_url")
+def main(logfile, file_or_url):
+    """Drop-in replacement for xdg-open on WSL systems that will open filename or URL using Windows.
+
+    Use this to have your WSL X-application open files and links in the corresponding Windows application.
+    I use it for Emacs running on WSL to open links and attachments in mu4e emails, and files and links from
+    orgmode and dired.
+
+    If the argument is a url starting with http(s) or zotero (special case for linking to zotero collections),
+    it is opened with the default Windows handler, typically your browser.
+
+    If the argument is a filename, its true location is determined. If the file is on the NTFS filesystem,
+    it is passed as a standard full "D:\\my\\path\\file.ext" to Windows for handling. If it is on the WSL
+    filesystem, it is transformed to a "wsl$\\"-style URI and passed to Windows for handling.
+    """
+
+    if logfile is not None:
+        file_handler = logging.FileHandler(logfile)
+        logger.addHandler(file_handler)
+
+    # if we get passed a normal url by e.g. browse-url.el, just open it directly
+    if re.match(r"^(https?|zotero):.*", file_or_url):
+        # to open web-links, we currently use "cmd.exe /c start http://your.url"
+        # after a few months of testing, this has proven reliable for normal links than explorer
+        # for cmd.exe special characters such as & and (, often occurring in URLs, have to be escaped.
+        sp_run_arg = ["cmd.exe", "/c", "start", escape_for_cmd_exe(file_or_url)]
+        # sp_run_arg = ["explorer.exe", escape_for_cmd_exe(fn)]
+        logger.info(f"http(s) -> subprocess.run() -> {sp_run_arg}")
+        subprocess.run(sp_run_arg)
+        return
+
+    winfn = convert_filename_to_windows(
+        file_or_url, build_mnt_to_drive_table(), os.environ.get("WSL_DISTRO_NAME", "Ubuntu-18.04")
+    )
 
     # again here we could use explorer or cmd. In this case, I've had the most joy with explorer.exe
     sp_run_arg = ["explorer.exe", winfn]
