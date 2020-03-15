@@ -1,3 +1,2 @@
-__version__ = '0.1.0'
-
+# bring main() here for script to find more easily
 from .xdg_open_wsl import main
