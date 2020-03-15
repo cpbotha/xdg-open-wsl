@@ -1,11 +1,25 @@
 [tool.poetry]
 name = "xdg-open-wsl"
-version = "0.1.0"
-description = ""
+version = "1.0.0"
+description = "xdg-open replacement for WSL that opens files and links using Windows apps."
 authors = ["Charl P. Botha (X1E) <cpbotha@vxlabs.com>"]
+license = "BSD-3-Clause"
+readme = "README.md"
+homepage = "https://github.com/cpbotha/xdg-open-wsl"
+repository = "https://github.com/cpbotha/xdg-open-wsl"
+keywords = ["xdg-open", "windows", "linux", "wsl"]
+classifiers = [
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: OS Independent",
+    "Topic :: Desktop Environment",
+]
+include = [
+    "LICENSE",
+]
 
 [tool.poetry.dependencies]
-python = "^3.7"
+python = "^3.6"
 click = "^7.1.1"
 
 [tool.poetry.dev-dependencies]
