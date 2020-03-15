@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 
-# xdg-open replacement for WSL, by Charl P. Botha <cpbotha@vxlabs.com>, that opens files and links using Windows apps.
+# xdg-open replacement for WSL that opens files and links using Windows apps.
+# copyright 2020 by Charl P. Botha <cpbotha@vxlabs.com>,
 # see the README.md for more information.
+
+# https://github.com/cpbotha/xdg-open-wsl/
 
 import logging
 import os
 import re
 import sys
 import subprocess
+from typing import List, Tuple
 
 import click
 
@@ -15,6 +19,25 @@ MYDIR = os.path.dirname(os.path.abspath(sys.argv[0]))
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
+
+
+def build_mnt_to_drive_table() -> List[Tuple[str, str]]:
+    """Using the mount command, figure out how windows drive letters are mounted in WSL."""
+    table = []
+    completed = subprocess.run("mount", stdout=subprocess.PIPE)
+    # result of command above will be e.g.
+    # C:\ on /mnt/c type drvfs (rw,noatime,uid=1000,gid=1000,umask=22,metadata,case=off)
+    # D:\ on /mnt/d type drvfs (rw,noatime,uid=1000,gid=1000,umask=22,metadata,case=off)
+    # but mount points can be configured anywhere. Mine are C:\ -> /c/ for example
+    for l in completed.stdout.decode("utf-8").split("\n"):
+        if "type drvfs" in l:
+            # I find the first and the third, so I do a range from 0 to <3 but skip one with step=2
+            # e.g. "/mnt/c" -> "C:\"
+            drive, mount_point = l.split()[0:3:2]
+            # make it "/mnt/c/" -> "c:/"
+            table.append((f"{mount_point}/", drive[0:-1] + "/"))
+
+    return table
 
 
 # taken from https://stackoverflow.com/a/29215357/532513
@@ -105,19 +128,33 @@ def main(logfile, file_or_url):
     # make sure we have full, real location (absolute and symlinks resolved)
     real_fn = os.path.realpath(fn)
 
-    # replace every / with a double \\ (escaped backslash)
-    bsfn = real_fn.replace("/", "\\")
+    # only if path starts with e.g. /mnt/c/ replace that with c:/
+    lut = build_mnt_to_drive_table()
+    on_wsl_fs = True
+    for mount_point, drive in lut:
+        if real_fn.startswith(mount_point):
+            # only replace the first occurrence, just in case
+            real_fn = real_fn.replace(mount_point, drive, 1)
+            # now we know for sure this is a file on the windows side
+            on_wsl_fs = False
+            # can only be on one windows drive, so we can stop looking
+            break
 
-    if bsfn.startswith("\\c\\"):
-        # oooer, this file lives on the native Windows side, so complete the address
-        winfn = bsfn.replace("\\c\\", "c:\\")
-    else:
-        # this file lives somewhere in WSL, so:
+    # replace every / with a double \\ (escaped backslash) as we're going to call windows now
+    winfn = real_fn.replace("/", "\\")
+
+    # winfn is now one of two things:
+    # 1. windows path e.g. c:\\some\\path\\filename.ext -- we can open this directly
+    # 2. WSL file e.g. \\home\\myuser\\Downloads\\somefile.ext -- we have to transform to wsl$ URI
+
+    if on_wsl_fs:
+        # case 2, his file lives somewhere in WSL, so:
         # prepend with win-compatible way to see that file
         # i.e. convert /linux/filename.pdf to "\\\\wsl$\\Ubuntu-18.04\\linux\\filename.pdf"
         wdn = os.environ.get("WSL_DISTRO_NAME", "Ubuntu-18.04")
-        winfn = f"\\\\wsl$\\{wdn}{bsfn}"
+        winfn = f"\\\\wsl$\\{wdn}{winfn}"
 
+    # again here we could use explorer or cmd. In this case, I've had the most joy with explorer.exe
     sp_run_arg = ["explorer.exe", winfn]
     logger.info("====================>")
     logger.info(f"http(s) -> subprocess.run() -> {sp_run_arg}")
