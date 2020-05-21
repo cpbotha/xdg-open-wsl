@@ -21,6 +21,7 @@ logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
 
+# DEPRECATED, to be removed soon.
 def build_mnt_to_drive_table() -> List[Tuple[str, str]]:
     """Using the mount command, figure out how windows drive letters are mounted in WSL."""
     table = []
@@ -84,6 +85,7 @@ def escape_for_cmd_exe(arg):
     return meta_re.sub(escape_meta_chars, arg)
 
 
+# DEPRECATED, to be removed soon. Replaced by much simpler wslpath version below
 def convert_filename_to_windows(fn: str, drive_lut: List[Tuple[str, str]], distro_name: str) -> str:
     """Given a filename, convert to Windows-compatible double-backslashed `D:\\my\\path` path or to
     `$wsl\\\\distro\\path` WSL-locator.
@@ -125,6 +127,34 @@ def convert_filename_to_windows(fn: str, drive_lut: List[Tuple[str, str]], distr
     return winfn
 
 
+def convert_filename_to_windows_new(fn: str) -> str:
+    # sometimes we get passed a file:// prefix that has to be stripped before
+    # realpath gets to it
+    file_prefix = "file://"
+    if fn.startswith(file_prefix):
+        fn = fn[len(file_prefix):]
+
+    winfn = subprocess.check_output(["wslpath", "-aw", fn]).decode('utf-8').strip()
+    return winfn
+
+
+def get_explorer_path() -> str:
+    """Get full WSL-path to explorer.exe
+
+    Under some environments, explorer.exe is not on the WSL PATH, so we invoke it by its full WSL path.
+    """
+    return subprocess.check_output(["wslpath", "-u", r"c:\windows\explorer.exe"]).decode('utf-8').strip()
+
+
+def get_cmd_path() -> str:
+    """Get full WSL-path to cmd.exe
+
+    Under some environments, cmd.exe is not on the WSL PATH, so we invoke it by its full WSL path,
+    derived from its canonical Windows location.
+    """
+    return subprocess.check_output(["wslpath", "-u", r"c:\windows\system32/cmd.exe"]).decode('utf-8').strip()
+
+
 @click.command()
 @click.option("--logfile")
 @click.argument("file_or_url")
@@ -152,18 +182,20 @@ def main(logfile, file_or_url):
         # to open web-links, we currently use "cmd.exe /c start http://your.url"
         # after a few months of testing, this has proven reliable for normal links than explorer
         # for cmd.exe special characters such as & and (, often occurring in URLs, have to be escaped.
-        sp_run_arg = ["cmd.exe", "/c", "start", escape_for_cmd_exe(file_or_url)]
+        sp_run_arg = [get_cmd_path(), "/c", "start", escape_for_cmd_exe(file_or_url)]
         # sp_run_arg = ["explorer.exe", escape_for_cmd_exe(fn)]
         logger.info(f"http(s) -> subprocess.run() -> {sp_run_arg}")
         subprocess.run(sp_run_arg)
         return
 
-    winfn = convert_filename_to_windows(
-        file_or_url, build_mnt_to_drive_table(), os.environ.get("WSL_DISTRO_NAME", "Ubuntu-18.04")
-    )
+    # winfn = convert_filename_to_windows(
+    #     file_or_url, build_mnt_to_drive_table(), os.environ.get("WSL_DISTRO_NAME", "Ubuntu-18.04")
+    # )
+
+    winfn = convert_filename_to_windows_new(file_or_url)
 
     # again here we could use explorer or cmd. In this case, I've had the most joy with explorer.exe
-    sp_run_arg = ["explorer.exe", winfn]
+    sp_run_arg = [get_explorer_path(), winfn]
     logger.info("====================>")
     logger.info(f"http(s) -> subprocess.run() -> {sp_run_arg}")
     completed_process = subprocess.run(sp_run_arg)
