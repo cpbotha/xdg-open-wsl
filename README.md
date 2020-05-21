@@ -14,6 +14,7 @@ Until I publish to pypi, the easiest is option 1.
 
 ```shell
 # make sure you have the latest pip
+# NOTE: you HAVE to do this upgrade, else pip install won't know what to do without setup.py!
 pip3 install --user --upgrade pip
 # install xdg-open-wsl using your latest pip
 pip install --user git+https://github.com/cpbotha/xdg-open-wsl.git
