@@ -132,9 +132,9 @@ def convert_filename_to_windows_new(fn: str) -> str:
     # realpath gets to it
     file_prefix = "file://"
     if fn.startswith(file_prefix):
-        fn = fn[len(file_prefix):]
+        fn = fn[len(file_prefix) :]
 
-    winfn = subprocess.check_output(["wslpath", "-aw", fn]).decode('utf-8').strip()
+    winfn = subprocess.check_output(["wslpath", "-aw", fn]).decode("utf-8").strip()
     return winfn
 
 
