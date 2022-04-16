@@ -143,7 +143,11 @@ def get_explorer_path() -> str:
 
     Under some environments, explorer.exe is not on the WSL PATH, so we invoke it by its full WSL path.
     """
-    return subprocess.check_output(["wslpath", "-u", r"c:\windows\explorer.exe"]).decode('utf-8').strip()
+    # from about windows 11 v22593 and WSL 0.58, running exe from the full path stopped working completely
+    # Looking at the docs: https://docs.microsoft.com/en-us/windows/wsl/filesystems#run-windows-tools-from-linux
+    # they want us to use just the .exe name
+    # return subprocess.check_output(["wslpath", "-u", r"c:\windows\explorer.exe"]).decode('utf-8').strip()
+    return "explorer.exe"
 
 
 def get_cmd_path() -> str:
@@ -152,7 +156,9 @@ def get_cmd_path() -> str:
     Under some environments, cmd.exe is not on the WSL PATH, so we invoke it by its full WSL path,
     derived from its canonical Windows location.
     """
-    return subprocess.check_output(["wslpath", "-u", r"c:\windows\system32/cmd.exe"]).decode('utf-8').strip()
+    # see note above in get_explorer_path()
+    # return subprocess.check_output(["wslpath", "-u", r"c:\windows\system32/cmd.exe"]).decode('utf-8').strip()
+    return "cmd.exe"
 
 
 @click.command()
