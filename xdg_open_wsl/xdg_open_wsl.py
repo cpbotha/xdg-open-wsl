@@ -202,7 +202,7 @@ def main(logfile, file_or_url):
 
     # again here we could use explorer or powershell. In this case, I've had the most joy with explorer.exe
 #    sp_run_arg = [get_explorer_path(), winfn]
-    sp_run_arg = [get_powershell_path(), "/c", "start", escape_for_powershell_exe(file_or_url)]
+    sp_run_arg = [get_powershell_path(), "/c", "start", escape_for_powershell_exe(winfn)]
     logger.info("====================>")
     logger.info(f"http(s) -> subprocess.run() -> {sp_run_arg}")
     completed_process = subprocess.run(sp_run_arg)
