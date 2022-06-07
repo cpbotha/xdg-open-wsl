@@ -42,9 +42,9 @@ def build_mnt_to_drive_table() -> List[Tuple[str, str]]:
 
 
 # taken from https://stackoverflow.com/a/29215357/532513
-# currently using only escape_for_cmd_exe
+# currently using only escape_for_powershell_exe
 def escape_argument(arg):
-    # Escape the argument for the cmd.exe shell.
+    # Escape the argument for the powershell.exe shell.
     # See http://blogs.msdn.com/b/twistylittlepassagesallalike/archive/2011/04/23/everyone-quotes-arguments-the-wrong-way.aspx
     #
     # First we escape the quote chars to produce a argument suitable for
@@ -53,25 +53,25 @@ def escape_argument(arg):
     if not arg or re.search(r'(["\s])', arg):
         arg = '"' + arg.replace('"', r"\"") + '"'
 
-    return escape_for_cmd_exe(arg)
+    return escape_for_powershell_exe(arg)
 
 
-def escape_for_cmd_exe(arg):
-    """Escape an argument string to be suitable to be passed to cmd.exe on Windows
+def escape_for_powershell_exe(arg):
+    """Escape an argument string to be suitable to be passed to powershell.exe on Windows
 
     taken from https://stackoverflow.com/a/29215357/532513
 
     This method takes an argument that is expected to already be properly
     escaped for the receiving program to be properly parsed. This argument
-    will be further escaped to pass the interpolation performed by cmd.exe
+    will be further escaped to pass the interpolation performed by powershell.exe
     unchanged.
 
     Any meta-characters will be escaped, removing the ability to e.g. use
     redirects or variables.
 
-    @param arg [String] a single command line argument to escape for cmd.exe
+    @param arg [String] a single command line argument to escape for powershell.exe
     @return [String] an escaped string suitable to be passed as a program
-      argument to cmd.exe
+      argument to powershell.exe
     """
 
     meta_chars = '()%!^"<>&|'
@@ -149,16 +149,18 @@ def get_explorer_path() -> str:
     # return subprocess.check_output(["wslpath", "-u", r"c:\windows\explorer.exe"]).decode('utf-8').strip()
     return "explorer.exe"
 
+def get_startexe_path() -> str:
+    return os.path.join(os.path.dirname(os.path.realpath(__file__)),"start.x86.exe")
 
-def get_cmd_path() -> str:
-    """Get full WSL-path to cmd.exe
+def get_powershell_path() -> str:
+    """Get full WSL-path to powershell.exe
 
-    Under some environments, cmd.exe is not on the WSL PATH, so we invoke it by its full WSL path,
+    Under some environments, powershell.exe is not on the WSL PATH, so we invoke it by its full WSL path,
     derived from its canonical Windows location.
     """
     # see note above in get_explorer_path()
-    # return subprocess.check_output(["wslpath", "-u", r"c:\windows\system32/cmd.exe"]).decode('utf-8').strip()
-    return "cmd.exe"
+    # return subprocess.check_output(["wslpath", "-u", r"c:\windows\system32/powershell.exe"]).decode('utf-8').strip()
+    return "powershell.exe"
 
 
 @click.command()
@@ -185,11 +187,12 @@ def main(logfile, file_or_url):
 
     # if we get passed a normal url by e.g. browse-url.el, just open it directly
     if re.match(r"^(https?|zotero):.*", file_or_url):
-        # to open web-links, we currently use "cmd.exe /c start http://your.url"
+        # to open web-links, we currently use "powershell.exe /c start http://your.url"
         # after a few months of testing, this has proven reliable for normal links than explorer
-        # for cmd.exe special characters such as & and (, often occurring in URLs, have to be escaped.
-        sp_run_arg = [get_cmd_path(), "/c", "start", escape_for_cmd_exe(file_or_url)]
-        # sp_run_arg = ["explorer.exe", escape_for_cmd_exe(fn)]
+        # for powershell.exe special characters such as & and (, often occurring in URLs, have to be escaped.
+#        sp_run_arg = ["start.exe", escape_for_powershell_exe(file_or_url)]
+        sp_run_arg = [get_startexe_path(), escape_for_powershell_exe(file_or_url)]
+        # sp_run_arg = ["explorer.exe", escape_for_powershell_exe(fn)]
         logger.info(f"http(s) -> subprocess.run() -> {sp_run_arg}")
         subprocess.run(sp_run_arg)
         return
@@ -200,14 +203,16 @@ def main(logfile, file_or_url):
 
     winfn = convert_filename_to_windows_new(file_or_url)
 
-    # again here we could use explorer or cmd. In this case, I've had the most joy with explorer.exe
-    sp_run_arg = [get_explorer_path(), winfn]
+    # again here we could use explorer or powershell. In this case, I've had the most joy with explorer.exe
+#    sp_run_arg = [get_explorer_path(), winfn]
+#    sp_run_arg = [get_powershell_path(), "/c", "start", escape_for_powershell_exe(winfn)]
+    sp_run_arg = [get_startexe_path(), escape_for_powershell_exe(winfn)]
     logger.info("====================>")
     logger.info(f"http(s) -> subprocess.run() -> {sp_run_arg}")
     completed_process = subprocess.run(sp_run_arg)
     logger.info(completed_process)
     logger.info("================DONE.")
-    # subprocess.run(["cmd.exe", "/c", "start", "", winfn])
+    # subprocess.run(["powershell.exe", "/c", "start", "", winfn])
 
 
 if __name__ == "__main__":
