@@ -149,6 +149,8 @@ def get_explorer_path() -> str:
     # return subprocess.check_output(["wslpath", "-u", r"c:\windows\explorer.exe"]).decode('utf-8').strip()
     return "explorer.exe"
 
+def get_startexe_path() -> str:
+    return os.path.join(os.path.dirname(os.path.realpath(__file__)),"start.x86.exe")
 
 def get_powershell_path() -> str:
     """Get full WSL-path to powershell.exe
@@ -188,7 +190,8 @@ def main(logfile, file_or_url):
         # to open web-links, we currently use "powershell.exe /c start http://your.url"
         # after a few months of testing, this has proven reliable for normal links than explorer
         # for powershell.exe special characters such as & and (, often occurring in URLs, have to be escaped.
-        sp_run_arg = [get_powershell_path(), "/c", "start", escape_for_powershell_exe(file_or_url)]
+#        sp_run_arg = ["start.exe", escape_for_powershell_exe(file_or_url)]
+        sp_run_arg = [get_startexe_path(), escape_for_powershell_exe(file_or_url)]
         # sp_run_arg = ["explorer.exe", escape_for_powershell_exe(fn)]
         logger.info(f"http(s) -> subprocess.run() -> {sp_run_arg}")
         subprocess.run(sp_run_arg)
@@ -202,7 +205,8 @@ def main(logfile, file_or_url):
 
     # again here we could use explorer or powershell. In this case, I've had the most joy with explorer.exe
 #    sp_run_arg = [get_explorer_path(), winfn]
-    sp_run_arg = [get_powershell_path(), "/c", "start", escape_for_powershell_exe(winfn)]
+#    sp_run_arg = [get_powershell_path(), "/c", "start", escape_for_powershell_exe(winfn)]
+    sp_run_arg = [get_startexe_path(), escape_for_powershell_exe(winfn)]
     logger.info("====================>")
     logger.info(f"http(s) -> subprocess.run() -> {sp_run_arg}")
     completed_process = subprocess.run(sp_run_arg)
