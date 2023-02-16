@@ -1,0 +1,12 @@
+# Compilation / optimization files
+__pycache__/
+*.py[cod]
+
+# Distribution / packaging
+build/
+dist/
+sdist/
+eggs/
+.eggs/
+*.egg-info
+*.egg
