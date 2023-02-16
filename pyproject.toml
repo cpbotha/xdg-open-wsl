@@ -20,19 +20,19 @@ include = [
 
 [tool.poetry.dependencies]
 python = "^3.8"
-click = "^7.1.1"
+click = ">=7.1.1"
 
 [tool.poetry.dev-dependencies]
-pytest = "^5.2"
-flake8 = "^3.7.9"
-black = "^19.10b0"
+pytest = ">=5.2"
+flake8 = ">=3.7.9"
+black = ">=19.10b0"
 
 [tool.poetry.scripts]
 xdg-open = 'xdg_open_wsl:main'
 
 [build-system]
-requires = ["poetry>=0.12"]
-build-backend = "poetry.masonry.api"
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core;masonry.api"
 
 [tool.black]
 # change black's default from 88 characters to 120 characters
